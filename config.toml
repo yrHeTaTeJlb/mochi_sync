@@ -1,0 +1,10 @@
+api_key = ""
+input_directory = "input_data"
+output_file = "deck.mochi"
+model = "gemini-flash-lite-latest"
+card_template = "${translation}\n---\n${word} ${transcription}\n> ${example}"
+first_language = "Russian"
+second_language = "English"
+second_language_level = "A2"
+retry_attempts = 10
+retry_delay = 20
