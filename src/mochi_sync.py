@@ -203,13 +203,37 @@ def push_to_device(config: Config) -> None:
     print("Deck pushed successfully")
 
 
+def cleanup_input_directory(config: Config) -> None:
+    print("Cleaning up input directory...")
+
+    input_path = Path(config.input_directory)  
+
+    files = [f for f in input_path.iterdir() if f.is_file()]
+    if not files:
+        return
+
+    time_suffix = time.strftime("%Y%m%d_%H%M%S")
+    while True:
+        backup_path = input_path / "mochi_sync_backup" / f"{time_suffix}_{uuid.uuid4().hex}"
+        if not backup_path.exists():
+            backup_path.mkdir(parents=True)
+            break
+
+    for file in input_path.iterdir():
+        if not file.is_file():
+            continue
+
+        print(f"{file} -> {backup_path / file.name}")
+        file.rename(backup_path / file.name)
+    
+
 def main() -> None:
     config = load_config()
     client = genai.Client(api_key=config.api_key)
     deck = make_deck(client, config)
     save_deck(deck, config)
     push_to_device(config)
-
+    cleanup_input_directory(config)
     print("All done!")
 
 
