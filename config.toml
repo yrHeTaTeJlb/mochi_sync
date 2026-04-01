@@ -8,3 +8,5 @@ second_language = "English"
 second_language_level = "A2"
 retry_attempts = 10
 retry_delay = 20
+android_device_id = ""
+android_path = "/sdcard/Download/Mess/"

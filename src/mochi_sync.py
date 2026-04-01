@@ -1,3 +1,6 @@
+from functools import lru_cache
+import subprocess
+import sys
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -25,6 +28,8 @@ class Config(BaseModel):
     second_language_level: str
     retry_attempts: int
     retry_delay: int
+    android_device_id: str
+    android_path: str
 
     @field_validator("input_directory", "output_file", mode="before")
     @classmethod
@@ -53,6 +58,34 @@ class Flashcard(BaseModel):
 class Deck(BaseModel):
     name: str
     cards: list[Flashcard]
+
+
+@lru_cache()
+def platform() -> str:
+    if sys.platform.startswith("linux"):
+        return "linux"
+
+    if sys.platform == "darwin":
+        return "darwin"
+
+    if sys.platform in {"win32", "cygwin", "msys"}:
+        return "windows"
+
+
+@lru_cache()
+def adb_path() -> str:
+    if platform() == "windows":
+        adb_executable = "adb.exe"
+    else:
+        adb_executable = "adb"
+
+    adb_path = Path(__file__).parent.parent / "platform_tools" / platform() / adb_executable
+
+    return adb_path.as_posix()
+
+
+def adb(*args: tuple[str, ...]) -> None:
+    subprocess.run([adb_path(), *args], check=True)
 
 
 def load_config() -> Config:
@@ -156,11 +189,28 @@ def make_deck(client: genai.Client, config: Config) -> Deck:
         raise RuntimeError(f"Failed to generate content after {config.retry_attempts} attempts.") from last_exception
 
 
+def push_to_device(config: Config) -> None:
+    if not config.android_path:
+        print("Android path is not set. Skipping push to device.")
+        return
+
+    device_id_args = []
+    if config.android_device_id:
+        device_id_args = ["-s", config.android_device_id]
+
+    print(f"Pushing deck to Android device at {config.android_path}...")
+    adb(*device_id_args, "push", config.output_file, config.android_path)
+    print("Deck pushed successfully")
+
+
 def main() -> None:
     config = load_config()
     client = genai.Client(api_key=config.api_key)
     deck = make_deck(client, config)
     save_deck(deck, config)
+    push_to_device(config)
+
+    print("All done!")
 
 
 if __name__ == "__main__":
